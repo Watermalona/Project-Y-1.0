@@ -233,7 +233,7 @@
 
         // 自動升級計算
         function checkLevelUp() {
-            let nextLevel = Math.floor(score / 10) + 1;
+            let nextLevel = Math.floor(score / 30) + 1;
             if (nextLevel > 5) nextLevel = 5;
             if (nextLevel !== currentLevel) {
                 currentLevel = nextLevel;
@@ -256,7 +256,7 @@
                 let radius = player.width / 2;
 
                 // 貓耳
-                ctx.fillStyle = "#FFCA28"; 
+                ctx.fillStyle = "#FFE74C"; 
                 ctx.beginPath();
                 ctx.moveTo(centerX - radius, centerY - radius + 5);
                 ctx.lineTo(centerX - radius - 2, centerY - radius - 6);
