@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>黃貓落樓梯 經典優化版</title>
+    <title>黃貓落樓梯 終極完全版</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,7 +32,7 @@
 </head>
 <body>
 
-    <h1>黃色貓貓落樓梯 (優化體驗版) 🐱</h1>
+    <h1>黃色貓貓落樓梯 (完美完全版) 🐱</h1>
     <p>操控方法：用鍵盤 ⬅️ ➡️ 箭頭。⚠️ 避開紅色針刺，小心藍色傳送帶！</p>
     
     <div class="hud-container">
@@ -69,13 +69,13 @@
         let animationFrameId = null;
         let invulnerableTimer = 0; // 受傷無敵時間計時器
 
-        // 關卡參數設定：控制速度同每種障礙物出現嘅機率
+        // 關卡參數設定
         const levelSettings = {
-            1: { speed: 1.0, color: "#4CAF50", spikeChance: 0.0, conveyorChance: 0.0 }, // 第一關：全安全
-            2: { speed: 1.3, color: "#2196F3", spikeChance: 0.15, conveyorChance: 0.0 }, // 第二關：開始有針刺
-            3: { speed: 1.6, color: "#9C27B0", spikeChance: 0.20, conveyorChance: 0.15 }, // 第三關：加入傳送帶
+            1: { speed: 1.0, color: "#4CAF50", spikeChance: 0.0, conveyorChance: 0.0 }, // Level 1: 全安全
+            2: { speed: 1.3, color: "#2196F3", spikeChance: 0.15, conveyorChance: 0.0 }, // Level 2: 開始有針刺
+            3: { speed: 1.6, color: "#9C27B0", spikeChance: 0.20, conveyorChance: 0.15 }, // Level 3: 加入傳送帶
             4: { speed: 1.9, color: "#FF9800", spikeChance: 0.25, conveyorChance: 0.25 },
-            5: { speed: 2.2, color: "#E91E63", spikeChance: 0.25, conveyorChance: 0.35 }  // 第五關：極快
+            5: { speed: 2.2, color: "#E91E63", spikeChance: 0.25, conveyorChance: 0.35 }  // Level 5: 極快
         };
 
         // === 3. 鍵盤監聽 ===
@@ -98,10 +98,9 @@
         // === 4. 樓梯生成邏輯 ===
         function initPlatforms() {
             platforms = [];
-            // 開局第一塊必定係普通安全綠色樓梯
+            // 第一塊必定係普通安全樓梯
             platforms.push({ x: 150, y: 150, width: 100, height: 15, type: "normal" });
             
-            // 隨機排列初始嘅 5 條樓梯
             for (let i = 1; i < 6; i++) {
                 generatePlatform(i * 85 + 150);
             }
@@ -111,11 +110,10 @@
             let width = 80;
             let x = Math.random() * (canvas.width - width);
             
-            let current = levelSettings[currentLevel] || levelSettings[1];
+            let current = levelSettings[currentLevel] || levelSettings;
             let rand = Math.random();
             let type = "normal";
 
-            // 隨機決定生成邊一種樓梯
             if (rand < current.spikeChance) {
                 type = "spike";
             } else if (rand < current.spikeChance + current.conveyorChance) {
@@ -129,7 +127,7 @@
         function update() {
             if (gameOver) return;
 
-            // 處理無敵時間倒數
+            // 處理無敵時間
             if (invulnerableTimer > 0) {
                 invulnerableTimer--;
             }
@@ -143,44 +141,33 @@
                 player.vx = 0;
             }
 
-            // 套用重力物理
             player.vy += player.gravity;
             player.x += player.vx;
             player.y += player.vy;
 
             // 左右邊界碰撞檢查
-            if (player.x < 0) {
-                player.x = 0;
-            }
-            if (player.x + player.width > canvas.width) {
-                player.x = canvas.width - player.width;
-            }
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-            // 獲取目前關卡嘅移動速度
             let speedSetting = levelSettings[currentLevel] ? levelSettings[currentLevel].speed : 1.0;
 
-            // 逐條樓梯檢查碰撞判定
+            // 逐條樓梯檢查碰撞
             platforms.forEach((plat, index) => {
-                // 樓梯向上移
                 plat.y -= speedSetting;
 
-                // 檢查 X 軸與 Y 軸範圍（精準踩板幾何檢測）
                 let insideX = player.x + player.width > plat.x && player.x < plat.x + plat.width;
                 
                 if (insideX) {
-                    // 核心修正：判斷對腳係咪落在樓梯頂部範圍
                     if (player.y + player.height >= plat.y && player.y + player.height - player.vy <= plat.y + 8) {
                         
                         if (plat.type === "spike") {
-                            // 踩到針刺：扣血，並向上彈開
                             takeDamage();
-                            player.vy = -4; 
+                            player.vy = -4; // 彈開
                         } else {
-                            // 踩到普通板或傳送帶：定格喺樓梯表面，隨樓梯上升
                             player.y = plat.y - player.height;
                             player.vy = -speedSetting; 
 
-                            // 傳送帶額外橫向推力
+                            // 傳送帶推力
                             if (plat.type === "conveyorLeft") {
                                 player.x -= 2.0;
                             } else if (plat.type === "conveyorRight") {
@@ -190,7 +177,7 @@
                     }
                 }
 
-                // 當樓梯移出頂部，就喺底重新抽過一條
+                // 移出頂部重新生成
                 if (plat.y + plat.height < 0) {
                     platforms.splice(index, 1);
                     generatePlatform(canvas.height);
@@ -201,7 +188,7 @@
             });
 
             // === 6. 死亡與受傷判斷 ===
-            // 頂部紅線針刺：持續觸摸會扣血，但唔會即刻死
+            // 頂部紅線夾到
             if (player.y <= 10) {
                 player.y = 10;
                 takeDamage();
@@ -229,12 +216,12 @@
         function takeDamage() {
             if (invulnerableTimer === 0) {
                 hp--;
-                invulnerableTimer = 60; // 1秒無敵時間防止連續秒殺
+                invulnerableTimer = 60; // 1秒無敵防止秒殺
                 updateHPDisplay();
             }
         }
 
-        // 更新頂部心心 UI
+        // 更新生命值 UI
         function updateHPDisplay() {
             let hearts = "";
             for (let i = 0; i < hp; i++) {
@@ -258,11 +245,11 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // 畫天花板危險紅線
+            // 天花板紅線
             ctx.fillStyle = "red";
             ctx.fillRect(0, 0, canvas.width, 10);
 
-            // ---- 開始畫貓貓 (受傷無敵時會閃爍) ----
+            // ---- 畫貓貓 ----
             if (invulnerableTimer % 8 < 4) { 
                 let centerX = player.x + player.width / 2;
                 let centerY = player.y + player.height / 2;
@@ -282,12 +269,12 @@
                 ctx.lineTo(centerX + 2, centerY - radius + 2);
                 ctx.fill();
 
-                // 貓頭面部
+                // 貓面
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // 眼睛轉向
+                // 眼睛
                 ctx.fillStyle = "#000000";
                 let eyeOffsetX = player.facing === "left" ? -4 : 2; 
                 
@@ -304,19 +291,17 @@
                 ctx.beginPath();
                 ctx.arc(centerX + (player.facing === "left" ? -2 : 1), centerY + 2, 1.5, 0, Math.PI * 2);
                 ctx.fill();
-                } 
-                // ---- 貓貓完 ----
-        
-                // ---- 畫各種不同樓梯 ----
-                let currentColors = levelSettings[currentLevel] || levelSettings[1];
+            }
 
-                platforms.forEach(plat => {
-                if (plat.type === "spike") {    
-                // 1. 畫紅色【針刺樓梯】
-                ctx.fillStyle = "#FF3333";
-                ctx.fillRect(plat.x, plat.y + 5, plat.width, plat.height - 5);
-                
-                // 用迴圈畫頂部尖刺
+            // ---- 畫各種樓梯 ----
+            let currentColors = levelSettings[currentLevel] || levelSettings;
+            
+            platforms.forEach(plat => {
+                if (plat.type === "spike") {
+                    // 1. 紅色針刺樓梯
+                    ctx.fillStyle = "#FF3333";
+                    ctx.fillRect(plat.x, plat.y + 5, plat.width, plat.height - 5);
+                    
                     let spikeWidth = 8;
                     for (let i = plat.x; i < plat.x + plat.width; i += spikeWidth) {
                         ctx.beginPath();
@@ -327,15 +312,13 @@
                     }
                 } 
                 else if (plat.type === "conveyorLeft" || plat.type === "conveyorRight") {
-                    // 2. 畫亮藍色【傳送帶冰塊樓梯】
+                    // 2. 亮藍色傳送帶樓梯
                     ctx.fillStyle = "#00E5FF";
                     ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
                     
-                    // 畫白色小方向箭頭
                     ctx.strokeStyle = "#FFFFFF";
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    
                     if (plat.type === "conveyorLeft") {
                         ctx.moveTo(plat.x + 20, plat.y + 7); 
                         ctx.lineTo(plat.x + 10, plat.y + 7);
@@ -352,14 +335,14 @@
                     ctx.stroke();
                 } 
                 else {
-                    // 3. 畫【普通安全樓梯】（顏色隨 Level 改變）
+                    // 3. 普通安全樓梯
                     ctx.fillStyle = currentColors.color;
                     ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
                 }
             });
         }
 
-        // === 8. 遊戲重開與關閉 ===
+        // === 8. 遊戲重開 ===
         function endGame(msg) {
             gameOver = true;
             if (animationFrameId) {
@@ -372,7 +355,6 @@
         }
 
         function startGame() {
-            // 重置所有變數
             player.x = 188;
             player.y = 50;
             player.vy = 0;
@@ -382,12 +364,10 @@
             player.facing = "right";
             invulnerableTimer = 0;
             
-            // 更新 UI 文字
             document.getElementById("score-text").innerText = "層數: 0";
             document.getElementById("level-text").innerText = "LEVEL: 1";
             updateHPDisplay();
             
-            // 清空按鍵防止卡掣
             keys.Left = false;
             keys.Right = false;
             
@@ -398,4 +378,7 @@
 
         // 啟動遊戲
         startGame();
+    </script>
 
+</body>
+</html>
