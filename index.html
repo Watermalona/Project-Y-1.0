@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黃貓落樓梯 障礙物關卡版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #222;
+            color: white;
+            margin-top: 20px;
+        }
+        canvas {
+            background-color: #000;
+            border: 4px solid #fff;
+            display: block;
+            margin: 20px auto;
+        }
+        p { font-size: 18px; color: #ccc; }
+        .hud-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 0;
+        }
+        h2 { margin: 10px 0; }
+        #level-text { color: #FFD700; }
+    </style>
+</head>
+<body>
+
+    <h1>黃色貓貓落樓梯 (關卡障礙版)</h1>
+    <p>操控方法：用鍵盤 ⬅️ ➡️ 箭頭。⚠️ 小心紅色針刺樓梯！</p>
+    
+    <div class="hud-container">
+        <h2 id="level-text">LEVEL: 1</h2>
+        <h2 id="score-text">層數: 0</h2>
+    </div>
+    
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 1. 玩家設定
+        let player = {
+            x: 188, y: 50,
+            width: 24, height: 24,
+            vx: 0, vy: 0,
+            speed: 5,
+            gravity: 0.25,
+            onPlatform: false,
+            facing: "right"
+        };
+
+        // 2. 遊戲設定
+        let platforms = [];
+        let score = 0;
+        let currentLevel = 1;
+        let gameOver = false;
+        let animationFrameId = null;
+
+        // 關卡數值設定：新增 spikeChance (出現針刺障礙嘅機率)
+        const levelSettings = {
+            1: { speed: 1.0, color: "#4CAF50", spikeChance: 0.0 },  // Level 1: 0% 障礙
+            2: { speed: 1.3, color: "#2196F3", spikeChance: 0.15 }, // Level 2: 15% 障礙
+            3: { speed: 1.6, color: "#9C27B0", spikeChance: 0.25 }, // Level 3: 25% 障礙
+            4: { speed: 1.9, color: "#FF9800", spikeChance: 0.30 }, // Level 4: 30% 障礙
+            5: { speed: 2.2, color: "#E91E63", spikeChance: 0.35 }  // Level 5: 35% 障礙
+        };
+
+        // 鍵盤狀態
+        let keys = { Left: false, Right: false };
+        window.addEventListener("keydown", e => {
+            if (e.key === "ArrowLeft" || e.key === "Left") { keys.Left = true; player.facing = "left"; }
+            if (e.key === "ArrowRight" || e.key === "Right") { keys.Right = true; player.facing = "right"; }
+        });
+        window.addEventListener("keyup", e => {
+            if (e.key === "ArrowLeft" || e.key === "Left") keys.Left = false;
+            if (e.key === "ArrowRight" || e.key === "Right") keys.Right = false;
+        });
+
+        // 初始化樓梯
+        function initPlatforms() {
+            platforms = [];
+            // 第一塊必定係安全普通樓梯
+            platforms.push({ x: 150, y: 150, width: 100, height: 15, isSpike: false });
+            for (let i = 1; i < 6; i++) {
+                generatePlatform(i * 85 + 150);
+            }
+        }
+
+        // 生成新樓梯 (根據關卡機率決定係咪變障礙物)
+        function generatePlatform(yPosition) {
+            let width = 80;
+            let x = Math.random() * (canvas.width - width);
+            
+            // 根據當前 Level 決定呢條樓梯係咪針刺障礙物
+            let chance = levelSettings[currentLevel] ? levelSettings[currentLevel].spikeChance : 0;
+            let isSpike = Math.random() < chance;
+
+            platforms.push({ x: x, y: yPosition, width: width, height: 15, isSpike: isSpike });
+        }
+
+        // 3. 核心遊戲引擎
+        function update() {
+            if (gameOver) return;
+
+            if (keys.Left) player.vx = -player.speed;
+            else if (keys.Right) player.vx = player.speed;
+            else player.vx = 0;
+
+            player.vy += player.gravity;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            let speedSetting = levelSettings[currentLevel] ? levelSettings[currentLevel].speed : 1.0;
+
+            player.onPlatform = false;
+            platforms.forEach((plat, index) => {
+                plat.y -= speedSetting;
+
+                let insideX = player.x + player.width > plat.x && player.x < plat.x + plat.width;
+                if (insideX) {
+                    if (player.y + player.height >= plat.y && player.y + player.height - player.vy <= plat.y + 8) {
+                        
+                        // 碰撞到障礙物（針刺）嘅特殊邏輯
+                        if (plat.isSpike) {
+                            score -= 3; // 懲罰：扣 3 層！
+                            if (score < 0) score = 0;
+                            player.vy = -4; // 將貓貓彈開
+                            document.getElementById("score-text").innerText = "層數: " + score;
+                            checkLevelUp();
+                        } else {
+                            // 踩到普通安全樓梯
+                            player.y = plat.y - player.height;
+                            player.vy = -speedSetting; 
+                            player.onPlatform = true;
+                        }
+                    }
+                }
+
+                if (plat.y + plat.height < 0) {
+                    platforms.splice(index, 1);
+                    generatePlatform(canvas.height);
+                    
+                    score++;
+                    checkLevelUp();
+                    document.getElementById("score-text").innerText = "層數: " + score;
+                }
+            });
+
+            if (player.y <= 10) { endGame(`貓貓被頂部針刺夾死咗喇！😭`); return; }
+            if (player.y > canvas.height) { endGame(`貓貓跌落深淵跌死咗喇！😭`); return; }
+
+            draw();
+            animationFrameId = requestAnimationFrame(update);
+        }
+
+        function checkLevelUp() {
+            let nextLevel = Math.floor(score / 10) + 1;
+            if (nextLevel > 5) nextLevel = 5;
+            if (nextLevel !== currentLevel) {
+                currentLevel = nextLevel;
+                document.getElementById("level-text").innerText = "LEVEL: " + currentLevel;
+            }
+        }
+
+        // 4. 繪圖功能
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "red";
+            ctx.fillRect(0, 0, canvas.width, 10);
+
+            // ---- 畫貓貓 ----
+            let centerX = player.x + player.width / 2;
+            let centerY = player.y + player.height / 2;
+            let radius = player.width / 2;
+
+            ctx.fillStyle = "#FFCA28"; 
+            ctx.beginPath();
+            ctx.moveTo(centerX - radius, centerY - radius + 5); ctx.lineTo(centerX - radius - 2, centerY - radius - 6); ctx.lineTo(centerX - 2, centerY - radius + 2); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(centerX + radius, centerY - radius + 5); ctx.lineTo(centerX + radius + 2, centerY - radius - 6); ctx.lineTo(centerX + 2, centerY - radius + 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = "#000000";
+            let eyeOffsetX = player.facing === "left" ? -4 : 2; 
+            ctx.beginPath(); ctx.arc(centerX - 4 + eyeOffsetX, centerY - 2, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(centerX + 4 + eyeOffsetX, centerY - 2, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#FF8A80"; ctx.beginPath(); ctx.arc(centerX + (player.facing === "left" ? -2 : 1), centerY + 2, 1.5, 0, Math.PI * 2); ctx.fill();
+            // ---- 貓貓完 ----
+
+            // 5. 畫樓梯 (包含普通樓梯與針刺障礙物)
+            let currentColors = levelSettings[currentLevel] ? levelSettings[currentLevel] : levelSettings[1];
+            
+            platforms.forEach(plat => {
+                if (plat.isSpike) {
+                    // 畫紅色「針刺障礙物」
+                    ctx.fillStyle = "#FF3333";
+                    ctx.fillRect(plat.x, plat.y + 5, plat.width, plat.height - 5);
+                    
+                    // 用三角形畫出頂部嘅尖刺
+                    ctx.fillStyle = "#FF3333";
+                    let spikeWidth = 8;
+                    for (let i = plat.x; i < plat.x + plat.width; i += spikeWidth) {
+                        ctx.beginPath();
+                        ctx.moveTo(i, plat.y + 5);
+                        ctx.lineTo(i + spikeWidth / 2, plat.y - 4); // 針刺頂點
+                        ctx.lineTo(i + spikeWidth, plat.y + 5);
+                        ctx.fill();
+                    }
+                } else {
+                    // 畫普通安全樓梯
+                    ctx.fillStyle = currentColors.color;
+                    ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                }
+            });
+        }
+
+        function endGame(msg) {
+            gameOver = true;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            setTimeout(() => {
+                alert(msg + " 最終得分: " + score + " 層");
+                startGame();
+            }, 10);
+        }
+
+        function startGame() {
+            player.x = 188; player.y = 50; player.vy = 0;
+            score = 0; currentLevel = 1; player.facing = "right";
+            document.getElementById("score-text").innerText = "層數: 0";
+            document.getElementById("level-text").innerText = "LEVEL: 1";
+            keys.Left = false; keys.Right = false;
+            gameOver = false;
+            initPlatforms();
+            update();
+        }
+
+        startGame();
+    </script>
+
+</body>
+</html>
